@@ -1,0 +1,54 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "$lib": [
+        "../src/lib"
+      ],
+      "$lib/*": [
+        "../src/lib/*"
+      ]
+    },
+    "rootDirs": [
+      "..",
+      "./types"
+    ],
+    "importsNotUsedAsValues": "error",
+    "isolatedModules": true,
+    "preserveValueImports": true,
+    "lib": [
+      "esnext",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "moduleResolution": "node",
+    "module": "esnext",
+    "target": "ES2021",
+    "ignoreDeprecations": "5.0",
+    "allowJs": true,
+    "checkJs": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "strictNullChecks": true,
+    "emitDeclarationOnly": false,
+    "incremental": true,
+    "tsBuildInfoFile": "D:\\Brendan\\Documents\\intellij\\redacted-svelte\\node_modules\\vitest\\dist\\tsconfig.tmp.tsbuildinfo"
+  },
+  "include": [
+    ".svelte-kit/ambient.d.ts",
+    ".svelte-kit/types/**/$types.d.ts",
+    "vite.config.ts",
+    "src/**/*.js",
+    "src/**/*.ts",
+    "src/**/*.svelte",
+    "tests/**/*.js",
+    "tests/**/*.ts",
+    "tests/**/*.svelte"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
