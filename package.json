@@ -45,7 +45,8 @@
 	},
 	"type": "module",
 	"engines": {
-		"node": ">=16"
+		"node": ">=16",
+		"npm": ">=8"
 	},
 	"dependencies": {
 		"dotenv": "^16.3.1"
