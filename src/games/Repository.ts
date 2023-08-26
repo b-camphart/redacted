@@ -1,4 +1,5 @@
-import { createGame, copyGame, type Game } from '$lib/games'
+import { createGame, copyGame, type Game } from '$lib/games';
+import { kv } from '@vercel/kv'
 
 export interface GameListener {
     close(): void;
@@ -63,3 +64,38 @@ class GamesImpl implements Games {
 }
 
 export const gamesRepository = (): Games => new GamesImpl();
+
+export const vercelGamesRepository = (): Games => new VercelGamesImpl();
+
+class VercelGamesImpl implements Games {
+
+    async createGame(numberOfStoryEntries?: number | undefined): Promise<Game> {
+        const id = Math.random().toString(36).substring(2) + '_' + await kv.dbsize()
+        const game: Game = createGame(id, numberOfStoryEntries);
+        await kv.set(id, game);
+        return copyGame(game);
+    }
+
+    async findGameById(id: string): Promise<Game | null> {
+        const game = await kv.get<Game>(id);
+        if (game == null) return null;
+        return game;
+    }
+
+    async findGameByIdOrThrow(id: string): Promise<Game> {
+        const game = await this.findGameById(id);
+        if (game == null) throw new Error('Game does not exist');
+        return game;
+    }
+
+    async saveGame(game: Game): Promise<void> {
+        if (await kv.exists(game.id)) {
+            await kv.set(game.id, copyGame(game));
+        }
+    }
+
+    async watch(id: string, onChange: (game: Game) => void): Promise<GameListener | null> {
+        return null;        
+    }
+
+}
