@@ -1,4 +1,4 @@
-import { getValidWordRanges } from "../usecases/story/wordRanges";
+import { getValidWordRanges, type NumberRange } from "../usecases/story/wordRanges";
 import { assign, onlyDefinedAssignments as definedAssignmentsOrThrow, type Assignment, onlyDefinedAssignments } from "./assignments";
 
 export interface Game {
@@ -14,6 +14,57 @@ export interface Game {
     playerAssignments(): [playerId: string, assignment: Assignment | null][];
 
     story(index: number): Story | null;
+
+    history(): GameHistory;
+}
+
+export type GameHistory = [GameCreated, ...GameModification[]];
+
+export interface GameModification {
+    applyTo(game: Game): void;
+}
+export class GameCreated {
+    constructor(public gameId: string, public entriesPerStory: number) {}
+}
+export class PlayerAdded implements GameModification { 
+    constructor(public playerId: string) {}
+
+    applyTo(game: Game): void {
+        game.addPlayer(this.playerId);
+    }
+}
+export class GameStarted implements GameModification {
+    applyTo(game: Game): void {
+        game.start();
+    }
+}
+export class StoryStarted implements GameModification { 
+    constructor(public playerId: string, public content: string) {}
+
+    applyTo(game: Game): void {
+        game.player(this.playerId)!.startStory(this.content);
+    }
+}
+export class StoryCensored implements GameModification { 
+    constructor(public playerId: string, public storyIndex: number, public wordIndices: number[]) {}
+
+    applyTo(game: Game): void {
+        game.story(this.storyIndex)!.censor(game.player(this.playerId)!, this.wordIndices);
+    }
+}
+export class StoryCensorRepaired implements GameModification { 
+    constructor(public playerId: string, public storyIndex: number, public replacements: string[]) {}
+
+    applyTo(game: Game): void {
+        game.story(this.storyIndex)!.repairCensorship(game.player(this.playerId)!, this.replacements)
+    }
+}
+export class StoryContinued implements GameModification { 
+    constructor(public playerId: string, public storyIndex: number, public content: string) {} 
+
+    applyTo(game: Game): void {
+        game.story(this.storyIndex)!.continue(game.player(this.playerId)!, this.content)
+    }
 }
 
 export function canGameByStarted(numberOfPlayers: number, started: boolean): boolean {
@@ -49,6 +100,7 @@ interface PlayerAssignment {
 
 class GameImpl implements Game {
 
+    private modifications = new Array<GameModification>();
     private playerIds = new Array<string>();
     private started = false;
     private assignments = new Map<string, Assignment[]>();
@@ -61,6 +113,7 @@ class GameImpl implements Game {
     }
 
     copyFrom(otherGame: GameImpl) {
+        this.modifications = Array.from(otherGame.modifications);
         this.numberOfStoryEntries = otherGame.numberOfStoryEntries;
         this.playerIds = [...otherGame.playerIds];
         this.started = otherGame.started;
@@ -86,6 +139,7 @@ class GameImpl implements Game {
     }
 
     addPlayer(playerId: string): PlayerInGame {
+        this.modifications.push(new PlayerAdded(playerId))
         this.playerIds.push(playerId);
         return new PlayerInGameImpl(this, playerId);
     }
@@ -131,6 +185,7 @@ class GameImpl implements Game {
     
     start(): boolean {
         if (!canGameByStarted(this.playerIds.length, this.started)) return false;
+        this.modifications.push(new GameStarted())
         this.started = true;
         this.playerIds.forEach(playerId => this.assignments.set(playerId, [assign.startingStory()]))
         return true;
@@ -155,6 +210,7 @@ class GameImpl implements Game {
             startingStory: () => {
                 const storyIndex = this.stories.length;
                 this.stories.push(new StoryImpl(this, storyIndex, [{ initialContent: content, contributors: [playerId] }]));
+                this.modifications.push(new StoryStarted(playerId, content))
                 return assign.redactingStory(content, storyIndex)
             },
         }))
@@ -219,6 +275,8 @@ class GameImpl implements Game {
             },
         }))
 
+        this.modifications.push(new StoryCensored(playerId, storyIndex, wordIndices))
+
         return this.updatePlayerAssignmentInStory(playerId, nextAssignmentInStory)
     }
 
@@ -257,6 +315,8 @@ class GameImpl implements Game {
                 return nextAssignment;          
             },
         }))
+
+        this.modifications.push(new StoryCensorRepaired(playerId, storyIndex, replacements))
         
         return this.updatePlayerAssignmentInStory(playerId, nextAssignmentInStory)
     }
@@ -280,7 +340,14 @@ class GameImpl implements Game {
             },
         }))
 
+        this.modifications.push(new StoryContinued(playerId, storyIndex, content))
+
         return this.updatePlayerAssignmentInStory(playerId, nextAssignmentInStory)
+    }
+
+    history(): [GameCreated, ...GameModification[]] {
+        const created = new GameCreated(this.id, this.numberOfStoryEntries)
+        return [created, ...this.modifications];
     }
 
 }
@@ -375,4 +442,12 @@ export const copyGame = (game: Game): Game => {
         copy.copyFrom(game);
     }
     return copy;
+}
+export const replayGame = (mods: [GameCreated, ...GameModification[]]): Game => {
+    const created = mods[0]
+    const game = new GameImpl(created.gameId, created.entriesPerStory);
+    for (const mod of mods.slice(1) as GameModification[]) {
+        mod.applyTo(game);
+    }
+    return game;
 }
