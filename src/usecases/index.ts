@@ -1,5 +1,5 @@
 import { events } from "$lib/updates";
-import { gamesRepository, vercelGamesRepository } from "../games/Repository";
+import { gamesRepository } from "../games/Repository";
 import { gameCreation, type GameCreation } from "./createGame";
 import { gameJoining, type GameJoining } from "./joinGame";
 import { gameStart, type GameStart } from "./startGame";
@@ -20,7 +20,7 @@ interface Redacted extends
     continueStory(gameId: string, storyIndex: number, playerId: string, content: string): Promise<void>;
 }
 
-const games = process.env.host === 'vercel' ? vercelGamesRepository() : gamesRepository();
+const games = gamesRepository();
 export const gameEvents = events();
 
 const map = <T, R>(obj: T, block: (it: T) => R) => {
