@@ -49,9 +49,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
     return new Response(events, {
         headers: {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            'Keep-Alive': 'timeout=20'
+            'Content-Type': 'text/event-stream; charset=utf-8',
+            'Cache-Control': 'no-cache, no-transform',
+            'Keep-Alive': 'timeout=20',
+            'Connection': 'keep-alive',
         }
     })
 }
