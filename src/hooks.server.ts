@@ -1,35 +1,36 @@
+import { inMemorySessionStore, type SessionStore } from '$lib/sessions';
 import type { Handle } from '@sveltejs/kit';
-import { kv } from '@vercel/kv';
 
 const cookieName = 'sid' // could we regenerate this every time the server starts?
 
-const vercelSessionStore = () => {
-    return {
-        get(sessionId: string) { return kv.get<{ userId: string }>(`s${sessionId}`) },
-        set(sessionId: string, session: { userId: string }) { return kv.set(`s${sessionId}`, session) }
-    }
-}
+const sessionStore = await inMemorySessionStore()
 
-const sessionStore = process.env.host === 'vercel' ? vercelSessionStore() : new Map<string, { userId: string }>();
+async function startNewSession(store: SessionStore): Promise<App.Session> {
+    const userId = Math.random().toString(36).slice(2);
+    return await store.startNewSession(userId);
+}
 
 export const handle: Handle = async ({ event, resolve }) => {
     let sessionId = event.cookies.get(cookieName)
+
+
+
+    let session: App.Session;
     if (sessionId == null) {
-        sessionId = Math.random().toString(36).slice(2)
-    }
-
-    let session = await sessionStore.get(sessionId)
-    if (session == null) {
-        session = {
-            userId: Math.random().toString(36).slice(2)
+        session = await startNewSession(sessionStore)
+    } else {
+        const maybeSession = await sessionStore.getSessionById(sessionId);
+        if (maybeSession == null) {
+            session = await startNewSession(sessionStore)
+        } else { 
+            session = maybeSession;
         }
-        await sessionStore.set(sessionId, session);
     }
 
-    event.cookies.set(cookieName, sessionId);
+    event.cookies.set(cookieName, session.id);
 
     event.locals = {
-        session: { id: sessionId, ...session }
+        session
     }
 
     return resolve(event)
